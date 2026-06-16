@@ -292,6 +292,26 @@ function normalizeSupabaseConfig(config = {}) {
   return merged;
 }
 
+function applySupabaseParams() {
+  const params = new URLSearchParams(window.location.search);
+  const url = params.get("url");
+  const anonKey = params.get("anonKey") || params.get("publishableKey");
+  const enabled = params.get("enabled");
+  if (!url && !anonKey && enabled === null) return;
+
+  state.supabase = normalizeSupabaseConfig({
+    ...state.supabase,
+    url: url || state.supabase.url,
+    anonKey: anonKey || state.supabase.anonKey,
+    enabled: enabled === null ? state.supabase.enabled : ["1", "true", "on", "yes"].includes(enabled.toLowerCase()),
+    lastStatus: "Supabase settings loaded from the page URL."
+  });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
+  const cleanUrl = `${window.location.origin}${window.location.pathname}`;
+  window.history.replaceState({}, document.title, cleanUrl);
+}
+
 function splitList(value) {
   if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
   return String(value || "")
@@ -1560,6 +1580,7 @@ function wireEvents() {
   });
 }
 
+applySupabaseParams();
 setTodayDefaults();
 wireEvents();
 renderAll();
