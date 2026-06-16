@@ -54,8 +54,8 @@ const initialState = {
   },
   supabase: {
     projectId: "pmyqsieamfohrywdpora",
-    url: "https://pmyqsieamfohrywdpora.supabase.co",
-    anonKey: "",
+    url: "https://pmyqsieamfohrywdpora.supabase.co/rest/v1/",
+    anonKey: "sb_publishable_AzNVd4jhVI1SFM0bgADBGQ_b4_Sukfn",
     enabled: false,
     lastSync: "",
     lastStatus: "Not connected"
@@ -161,10 +161,7 @@ function loadState() {
         ...initialState.formMemory,
         ...(parsed.formMemory || {})
       },
-      supabase: {
-        ...initialState.supabase,
-        ...(parsed.supabase || {})
-      },
+      supabase: normalizeSupabaseConfig(parsed.supabase),
       projects: normalizeProjects(parsed.projects || initialState.projects),
       funds: parsed.funds || [],
       audit: parsed.audit || []
@@ -198,6 +195,11 @@ function supabaseHeaders(extra = {}) {
   };
 }
 
+function supabaseRestUrl() {
+  const raw = String(state.supabase.url || "").trim().replace(/\/+$/, "");
+  return raw.endsWith("/rest/v1") ? raw : `${raw}/rest/v1`;
+}
+
 function sanitizedRemoteState() {
   const clone = structuredClone(state);
   if (clone.supabase) clone.supabase.anonKey = "";
@@ -218,7 +220,7 @@ async function pushStateToSupabase({ quiet = false } = {}) {
     return;
   }
   try {
-    const response = await fetch(`${state.supabase.url}/rest/v1/useful_apps_state`, {
+    const response = await fetch(`${supabaseRestUrl()}/useful_apps_state`, {
       method: "POST",
       headers: supabaseHeaders({ Prefer: "resolution=merge-duplicates" }),
       body: JSON.stringify({
@@ -242,7 +244,7 @@ async function loadStateFromSupabase() {
     return;
   }
   try {
-    const response = await fetch(`${state.supabase.url}/rest/v1/useful_apps_state?id=eq.default&select=data,updated_at`, {
+    const response = await fetch(`${supabaseRestUrl()}/useful_apps_state?id=eq.default&select=data,updated_at`, {
       headers: supabaseHeaders()
     });
     if (!response.ok) throw new Error(await response.text());
@@ -278,6 +280,16 @@ function normalizeProjects(projects) {
     priority: Number(project.priority || index + 1),
     plannedShare: Number(project.plannedShare || 0)
   }));
+}
+
+function normalizeSupabaseConfig(config = {}) {
+  const merged = {
+    ...initialState.supabase,
+    ...config
+  };
+  if (!merged.anonKey) merged.anonKey = initialState.supabase.anonKey;
+  if (!merged.url) merged.url = initialState.supabase.url;
+  return merged;
 }
 
 function splitList(value) {
