@@ -1,5 +1,7 @@
 const STORAGE_KEY = "useful-apps-ledger-v4";
 const START_DATE = "2026-03-01";
+const APP_NAME = "Gautam's Apps";
+const LEGACY_APP_NAME = "Useful Apps";
 
 localStorage.removeItem("opus-finance-tracker-v1");
 localStorage.removeItem("opus-finance-tracker-v2");
@@ -7,7 +9,7 @@ localStorage.removeItem("useful-apps-ledger-v3");
 
 const initialState = {
   company: {
-    company: "Useful Apps",
+    company: APP_NAME,
     ceo: "Gautam Dogra",
     entity: "Startup portfolio",
     card: "Company card",
@@ -27,7 +29,7 @@ const initialState = {
       id: "gautam",
       name: "Gautam Dogra",
       email: "gautam@usefulapps.local",
-      orgs: ["Useful Apps", "OpusOptionsTrading Inc.", "299trust", "oncosaferx.com", "SiteBoss"],
+      orgs: [APP_NAME, "OpusOptionsTrading Inc.", "299trust", "oncosaferx.com", "SiteBoss"],
       role: "admin"
     },
     {
@@ -77,7 +79,7 @@ const initialState = {
     {
       id: "299trust",
       name: "299trust",
-      owner: "Useful Apps",
+      owner: APP_NAME,
       url: "299trust",
       rate: 150,
       org: "299trust",
@@ -90,7 +92,7 @@ const initialState = {
     {
       id: "oncosaferx",
       name: "oncosaferx.com",
-      owner: "Useful Apps",
+      owner: APP_NAME,
       url: "oncosaferx.com",
       rate: 150,
       org: "oncosaferx.com",
@@ -103,7 +105,7 @@ const initialState = {
     {
       id: "siteboss",
       name: "SiteBoss",
-      owner: "Useful Apps",
+      owner: APP_NAME,
       url: "siteboss",
       rate: 150,
       org: "SiteBoss",
@@ -146,10 +148,10 @@ const shortDate = (date) => {
 
 function loadState() {
   const saved = localStorage.getItem(STORAGE_KEY);
-  if (!saved) return structuredClone(initialState);
+  if (!saved) return migrateAppName(structuredClone(initialState));
   try {
     const parsed = JSON.parse(saved);
-    return {
+    return migrateAppName({
       ...structuredClone(initialState),
       ...parsed,
       company: { ...initialState.company, ...(parsed.company || {}) },
@@ -165,9 +167,9 @@ function loadState() {
       projects: normalizeProjects(parsed.projects || initialState.projects),
       funds: parsed.funds || [],
       audit: parsed.audit || []
-    };
+    });
   } catch {
-    return structuredClone(initialState);
+    return migrateAppName(structuredClone(initialState));
   }
 }
 
@@ -258,7 +260,7 @@ async function loadStateFromSupabase() {
       return;
     }
     const localSupabase = structuredClone(state.supabase);
-    state = {
+    state = migrateAppName({
       ...structuredClone(initialState),
       ...rows[0].data,
       supabase: {
@@ -266,7 +268,7 @@ async function loadStateFromSupabase() {
         lastSync: rows[0].updated_at,
         lastStatus: `Loaded from Supabase at ${new Date().toLocaleString()}`
       }
-    };
+    });
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     renderAll();
   } catch (error) {
@@ -277,13 +279,27 @@ async function loadStateFromSupabase() {
 function normalizeProjects(projects) {
   return projects.map((project, index) => ({
     ...project,
-    org: project.org || project.owner || "Useful Apps",
+    org: project.org || project.owner || APP_NAME,
     allowedViewers: Array.isArray(project.allowedViewers)
       ? project.allowedViewers
       : splitList(project.allowedViewers),
     priority: Number(project.priority || index + 1),
     plannedShare: Number(project.plannedShare || 0)
   }));
+}
+
+function migrateAppName(nextState) {
+  if (nextState.company?.company === LEGACY_APP_NAME) nextState.company.company = APP_NAME;
+  nextState.users = (nextState.users || []).map((user) => ({
+    ...user,
+    orgs: (user.orgs || []).map((org) => (org === LEGACY_APP_NAME ? APP_NAME : org))
+  }));
+  nextState.projects = (nextState.projects || []).map((project) => ({
+    ...project,
+    owner: project.owner === LEGACY_APP_NAME ? APP_NAME : project.owner,
+    org: project.org === LEGACY_APP_NAME ? APP_NAME : project.org
+  }));
+  return nextState;
 }
 
 function normalizeSupabaseConfig(config = {}) {

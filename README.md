@@ -1,10 +1,10 @@
-# Useful Apps
+# Gautam's Apps
 
 A local-first operating ledger for tracking initiative-specific time, expenses, funds, invoices, approvals, access profiles, and monthly expense reporting across multiple apps.
 
 ## Current App
 
-This repository contains the static Useful Apps prototype:
+This repository contains the static Gautam's Apps prototype:
 
 - `index.html` - app shell and forms
 - `styles.css` - application styling
