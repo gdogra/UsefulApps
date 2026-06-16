@@ -25,6 +25,12 @@ Then open:
 http://127.0.0.1:4173/
 ```
 
+## Production
+
+Live app: `https://gautamsapps.netlify.app/`
+
+Netlify should publish the repository root with no build command. The included `netlify.toml` keeps `index.html` and `app.js` revalidated so production picks up fixes quickly.
+
 ## Supabase
 
 Project: Useful apps  
