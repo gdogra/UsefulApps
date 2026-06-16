@@ -423,6 +423,16 @@ textarea {
   padding: 0;
 }
 
+.document-link {
+  color: var(--blue);
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.document-link:hover {
+  text-decoration: underline;
+}
+
 .table-wrap {
   overflow: auto;
 }

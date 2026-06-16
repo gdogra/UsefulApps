@@ -2,6 +2,7 @@ const STORAGE_KEY = "useful-apps-ledger-v4";
 const START_DATE = "2026-03-01";
 const APP_NAME = "Gautam's Apps";
 const LEGACY_APP_NAME = "Useful Apps";
+const MAX_EXPENSE_DOCUMENT_BYTES = 2 * 1024 * 1024;
 
 localStorage.removeItem("opus-finance-tracker-v1");
 localStorage.removeItem("opus-finance-tracker-v2");
@@ -139,6 +140,13 @@ const htmlEscape = (value) =>
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+
+const bytesLabel = (bytes) => {
+  const value = Number(bytes) || 0;
+  if (value >= 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)} MB`;
+  if (value >= 1024) return `${Math.round(value / 1024)} KB`;
+  return `${value} B`;
+};
 
 const shortDate = (date) => {
   if (!date) return "";
@@ -628,6 +636,48 @@ function defaultInvoiceDueDate() {
   form.elements.dueDate.value = date.toISOString().slice(0, 10);
 }
 
+function readExpenseDocument(file) {
+  return new Promise((resolve, reject) => {
+    if (!file || !file.name) {
+      resolve(null);
+      return;
+    }
+    if (file.size > MAX_EXPENSE_DOCUMENT_BYTES) {
+      reject(new Error(`Document is ${bytesLabel(file.size)}. Please attach a file under ${bytesLabel(MAX_EXPENSE_DOCUMENT_BYTES)}.`));
+      return;
+    }
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      resolve({
+        id: uid("doc"),
+        name: file.name,
+        type: file.type || "application/octet-stream",
+        size: file.size,
+        lastModified: file.lastModified || Date.now(),
+        dataUrl: reader.result
+      });
+    });
+    reader.addEventListener("error", () => reject(new Error("Could not read the selected document.")));
+    reader.readAsDataURL(file);
+  });
+}
+
+function expenseDocumentLabel(expense) {
+  if (!expense.reference && !expense.document?.name && !expense.documentType) return "";
+  const type = expense.documentType || "Document";
+  const reference = expense.reference ? `${type} ${expense.reference}` : type;
+  const file = expense.document?.name ? ` · ${expense.document.name}` : "";
+  return `${reference}${file}`;
+}
+
+function expenseDocumentHtml(expense) {
+  const label = expenseDocumentLabel(expense);
+  if (expense.document?.dataUrl) {
+    return `<a class="document-link" href="${htmlEscape(expense.document.dataUrl)}" download="${htmlEscape(expense.document.name || "expense-document")}">${htmlEscape(label)}</a><br><span class="status-line">${htmlEscape(bytesLabel(expense.document.size))}</span>`;
+  }
+  return htmlEscape(label || expense.receipt || "");
+}
+
 function nextInvoiceNumber() {
   const prefix = state.company.invoicePrefix || "INV";
   return `${prefix}-${String(state.company.nextInvoiceNumber || 1).padStart(4, "0")}`;
@@ -801,7 +851,7 @@ function renderExpenses() {
             <td>${money(expense.amount)}</td>
             <td>${htmlEscape(expense.category)}</td>
             <td>${statusBadge(approvalStatus(expense))}</td>
-            <td>${htmlEscape(expense.reference || expense.receipt || "")}</td>
+            <td>${expenseDocumentHtml(expense)}</td>
           </tr>`
         )
         .join("")
@@ -878,7 +928,7 @@ function renderApprovals() {
               ${approvalPerson(expense, "partnerB", partnerBName, state.partners.phoneB)}
               <div class="approval-person">
                 <strong>Documentation</strong>
-                <span class="status-line">${htmlEscape(expense.reference || "No invoice or quote reference")}</span>
+                <span class="status-line">${htmlEscape(expenseDocumentLabel(expense) || "No invoice, quote, or PO reference")}</span>
                 <span class="status-line">${htmlEscape(expense.receipt || "No receipt reference yet")}</span>
                 <span class="status-line">${htmlEscape(expense.source)}</span>
               </div>
@@ -924,7 +974,7 @@ function renderReport() {
       <article class="metric"><span>Open A/R</span><strong>${money(open)}</strong><p>${openIncomeEntries(data.income).filter(isOverdue).length} overdue</p></article>
     </div>
     ${reportTable("Time records", ["Date", "Project", "Hours", "Rate", "Value", "Work"], data.timeEntries.map((entry) => [shortDate(entry.date), projectName(entry.projectId), Number(entry.hours).toFixed(2), money(entry.rate), money(Number(entry.hours) * Number(entry.rate)), entry.notes]))}
-    ${reportTable("Expenses and receipts", ["Date", "Project", "Vendor", "Amount", "Reference", "Receipt", "Approval"], data.expenses.map((entry) => [shortDate(entry.date), projectName(entry.projectId), entry.vendor, money(entry.amount), entry.reference || "", entry.receipt || "Pending receipt", approvalStatus(entry)]))}
+    ${reportTable("Expenses and receipts", ["Date", "Project", "Vendor", "Amount", "Document", "Receipt", "Approval"], data.expenses.map((entry) => [shortDate(entry.date), projectName(entry.projectId), entry.vendor, money(entry.amount), expenseDocumentLabel(entry), entry.receipt || "Pending receipt", approvalStatus(entry)]))}
     ${reportTable("Fund infusions", ["Date", "Project", "Contributor", "Type", "Amount", "Reference"], data.funds.map((entry) => [shortDate(entry.date), projectName(entry.projectId), entry.contributor, entry.type, money(entry.amount), entry.reference || ""]))}
     ${reportTable("Invoices and payments", ["Date", "Due", "Project", "Invoice", "Customer", "Plan", "Amount", "Status"], data.income.map((entry) => [shortDate(entry.date), shortDate(entry.dueDate), projectName(entry.projectId), entry.invoiceNumber || "", entry.customer, entry.plan, money(entry.amount), isOverdue(entry) ? "Overdue" : entry.status]))}
   `;
@@ -1369,11 +1419,11 @@ function download(filename, content, type) {
 
 function exportCsv() {
   const data = entriesForReport();
-  const rows = [["type", "date", "due_date", "project", "counterparty", "reference", "category_or_plan", "amount", "status_or_notes"]];
-  data.timeEntries.forEach((entry) => rows.push(["time", entry.date, "", projectName(entry.projectId), state.company.ceo, "", "Founder labor", Number(entry.hours) * Number(entry.rate), entry.notes]));
-  data.expenses.forEach((entry) => rows.push(["expense", entry.date, entry.neededBy || "", projectName(entry.projectId), entry.vendor, entry.reference || entry.receipt || "", entry.category, entry.amount, approvalStatus(entry)]));
-  data.funds.forEach((entry) => rows.push(["fund", entry.date, "", projectName(entry.projectId), entry.contributor, entry.reference || "", entry.type, entry.amount, entry.notes || ""]));
-  data.income.forEach((entry) => rows.push(["invoice", entry.date, entry.dueDate || "", projectName(entry.projectId), entry.customer, entry.invoiceNumber || "", entry.plan, entry.amount, isOverdue(entry) ? "Overdue" : entry.status]));
+  const rows = [["type", "date", "due_date", "project", "counterparty", "reference", "document", "category_or_plan", "amount", "status_or_notes"]];
+  data.timeEntries.forEach((entry) => rows.push(["time", entry.date, "", projectName(entry.projectId), state.company.ceo, "", "", "Founder labor", Number(entry.hours) * Number(entry.rate), entry.notes]));
+  data.expenses.forEach((entry) => rows.push(["expense", entry.date, entry.neededBy || "", projectName(entry.projectId), entry.vendor, entry.reference || entry.receipt || "", expenseDocumentLabel(entry), entry.category, entry.amount, approvalStatus(entry)]));
+  data.funds.forEach((entry) => rows.push(["fund", entry.date, "", projectName(entry.projectId), entry.contributor, entry.reference || "", "", entry.type, entry.amount, entry.notes || ""]));
+  data.income.forEach((entry) => rows.push(["invoice", entry.date, entry.dueDate || "", projectName(entry.projectId), entry.customer, entry.invoiceNumber || "", "", entry.plan, entry.amount, isOverdue(entry) ? "Overdue" : entry.status]));
   download("useful-apps-report.csv", rows.map((row) => row.map(csvEscape).join(",")).join("\n"), "text/csv");
 }
 
@@ -1434,13 +1484,24 @@ function wireEvents() {
     renderAll();
   });
 
-  $("#expense-form").addEventListener("submit", (event) => {
+  $("#expense-form").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const data = formData(event.currentTarget);
+    const form = event.currentTarget;
+    const data = formData(form);
+    const documentFile = form.elements.documentFile.files[0];
+    delete data.documentFile;
+    let document = null;
+    try {
+      document = await readExpenseDocument(documentFile);
+    } catch (error) {
+      alert(error.message);
+      return;
+    }
     state.expenses.push({
       id: uid("expense"),
       ...data,
       amount: Number(data.amount),
+      document,
       approvals: { partnerA: false, partnerB: false }
     });
     state.activeProjectId = data.projectId;

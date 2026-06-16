@@ -222,7 +222,17 @@
                   <option>Founder reimbursement</option>
                 </select>
               </label>
-              <label>Invoice or quote #<input name="reference" placeholder="Vendor invoice, quote, or PO" /></label>
+              <label>Invoice, quote, or PO #<input name="reference" placeholder="Vendor invoice, quote, or PO number" /></label>
+              <label>Document type
+                <select name="documentType">
+                  <option>Invoice</option>
+                  <option>Quote</option>
+                  <option>Purchase order</option>
+                  <option>Receipt</option>
+                  <option>Other</option>
+                </select>
+              </label>
+              <label>Vendor document<input name="documentFile" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.heic,.doc,.docx,.xls,.xlsx,.csv,.txt" /></label>
               <label>Needed by<input name="neededBy" type="date" /></label>
               <label>Receipt reference<input name="receipt" placeholder="Receipt file or reference" /></label>
               <label>Purpose<textarea required name="purpose" rows="4" placeholder="Why this spend is needed"></textarea></label>
@@ -238,7 +248,7 @@
               <div class="table-wrap">
                 <table>
                   <thead>
-                    <tr><th>Date</th><th>Project</th><th>Vendor</th><th>Amount</th><th>Category</th><th>Status</th><th>Reference</th></tr>
+                    <tr><th>Date</th><th>Project</th><th>Vendor</th><th>Amount</th><th>Category</th><th>Status</th><th>Document</th></tr>
                   </thead>
                   <tbody id="expense-body"></tbody>
                 </table>
@@ -458,6 +468,6 @@
     <datalist id="vendor-suggestions"></datalist>
     <datalist id="customer-suggestions"></datalist>
     <datalist id="contributor-suggestions"></datalist>
-    <script src="app.js?v=20260616-gautams-apps"></script>
+    <script src="app.js?v=20260616-expense-documents"></script>
   </body>
 </html>

@@ -11,6 +11,8 @@ This repository contains the static Gautam's Apps prototype:
 - `app.js` - local state, imports, reporting, access filtering, and Supabase sync
 - `useful-apps-supabase-schema.sql` - Supabase table and policy setup
 
+Expense entries can include an invoice, quote, purchase order, receipt, or other vendor document. Files are embedded into the app state for now and capped at 2 MB each; moving larger documents to Supabase Storage is the next production step.
+
 ## Run Locally
 
 From the repository root:
