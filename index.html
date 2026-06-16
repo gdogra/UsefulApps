@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Useful Apps</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Workspace navigation">
+        <div class="brand-block">
+          <div class="brand-mark" aria-hidden="true">UA</div>
+          <div>
+            <h1>Useful Apps</h1>
+            <p>Portfolio operating ledger</p>
+          </div>
+        </div>
+        <nav class="nav-list">
+          <button class="nav-button active" data-view="dashboard" type="button">Overview</button>
+          <button class="nav-button" data-view="projects" type="button">Initiatives</button>
+          <button class="nav-button" data-view="time" type="button">Time</button>
+          <button class="nav-button" data-view="expenses" type="button">Expenses</button>
+          <button class="nav-button" data-view="income" type="button">Revenue</button>
+          <button class="nav-button" data-view="funds" type="button">Funds</button>
+          <button class="nav-button" data-view="approvals" type="button">Approvals</button>
+          <button class="nav-button" data-view="reports" type="button">Reports</button>
+          <button class="nav-button" data-view="audit" type="button">Audit</button>
+          <button class="nav-button" data-view="settings" type="button">Settings</button>
+        </nav>
+        <div class="partner-panel">
+          <span>Approval rule</span>
+          <strong>Fareed + Bud required before spend</strong>
+        </div>
+      </aside>
+
+      <main>
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Useful Apps portfolio</p>
+            <h2 id="view-title">Overview</h2>
+          </div>
+          <div class="topbar-actions">
+            <label class="compact-label">View as<select id="active-user"></select></label>
+            <label class="compact-label">Initiative<select id="active-project"></select></label>
+            <button class="icon-button" id="print-button" type="button" title="Print current report" aria-label="Print current report">P</button>
+          </div>
+        </header>
+
+        <section class="view active" id="dashboard-view" aria-labelledby="view-title">
+          <div class="metric-grid">
+            <article class="metric">
+              <span>Total invested time</span>
+              <strong id="metric-hours">0.0 h</strong>
+              <p id="metric-labor">$0</p>
+            </article>
+            <article class="metric">
+              <span>Expenses</span>
+              <strong id="metric-expenses">$0</strong>
+              <p id="metric-pending">0 pending approvals</p>
+            </article>
+            <article class="metric">
+              <span>Payments received</span>
+              <strong id="metric-income">$0</strong>
+              <p id="metric-orders">0 invoices</p>
+            </article>
+            <article class="metric">
+              <span>Funds infused</span>
+              <strong id="metric-funds">$0</strong>
+              <p id="metric-fund-count">0 contributions</p>
+            </article>
+            <article class="metric">
+              <span>Open invoices</span>
+              <strong id="metric-open">$0</strong>
+              <p id="metric-overdue">0 overdue</p>
+            </article>
+          </div>
+
+          <div class="dashboard-grid">
+            <section class="panel">
+              <div class="panel-header">
+                <div>
+                  <h3>Portfolio allocation</h3>
+                  <p>Ranked view of where time, expenses, payments, and capital are concentrated.</p>
+                </div>
+              </div>
+              <div id="project-summary-body" class="allocation-list"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-header">
+                <div>
+                  <h3>Approval queue</h3>
+                  <p>Every card or bank spend can be routed to the other partners first.</p>
+                </div>
+              </div>
+              <div id="approval-preview" class="approval-preview"></div>
+            </section>
+          </div>
+
+          <section class="panel control-panel">
+            <div class="panel-header">
+              <div>
+                <h3>Control checks</h3>
+                <p>Operational exceptions that need attention before month-end close.</p>
+              </div>
+            </div>
+            <div id="control-checks" class="control-checks"></div>
+          </section>
+        </section>
+
+        <section class="view" id="projects-view" aria-labelledby="view-title">
+          <div class="split-layout">
+            <form class="panel form-panel" id="project-form">
+              <h3>Add initiative</h3>
+              <label>Project name<input required name="name" placeholder="Initiative or product name" /></label>
+              <label>Org / team<input required name="org" placeholder="Organization or customer group" /></label>
+              <label>Allowed viewers<input name="allowedViewers" placeholder="Emails, comma-separated" /></label>
+              <label>Legal/business owner<input name="owner" placeholder="Company or owner" /></label>
+              <label>Domain or product URL<input name="url" placeholder="Domain or app URL" /></label>
+              <label>Default hourly rate<input required name="rate" type="number" min="0" step="1" value="150" /></label>
+              <label>Status
+                <select name="status">
+                  <option>Exploring</option>
+                  <option>Building</option>
+                  <option>Beta</option>
+                  <option>Beta / furthest along</option>
+                  <option>Done</option>
+                  <option>Revenue</option>
+                  <option>Paused</option>
+                </select>
+              </label>
+              <label>Budget cap<input name="budget" type="number" min="0" step="1" placeholder="Optional" /></label>
+              <button class="primary-button" type="submit">Add initiative</button>
+            </form>
+            <section class="panel">
+              <div class="panel-header">
+                <div>
+                  <h3>Active initiatives</h3>
+                  <p>Each transaction is attached to exactly one project.</p>
+                </div>
+              </div>
+              <div id="project-list" class="item-list"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="time-view" aria-labelledby="view-title">
+          <div class="split-layout">
+            <form class="panel form-panel" id="time-form">
+              <h3>Record founder hours</h3>
+              <label>Project<select required name="projectId" id="time-project"></select></label>
+              <label>Date<input required name="date" type="date" min="2026-03-01" /></label>
+              <label>Hours<input required name="hours" type="number" min="0.25" step="0.25" placeholder="2.5" /></label>
+              <label>Hourly rate<input required name="rate" type="number" min="0" step="1" /></label>
+              <label>Work performed<textarea required name="notes" rows="4" placeholder="Describe the work completed"></textarea></label>
+              <button class="primary-button" type="submit">Save time</button>
+            </form>
+            <section class="panel">
+              <div class="panel-header">
+                <div>
+                  <h3>Hours ledger</h3>
+                  <p>Founder work is valued as labor investment from March 1, 2026 forward.</p>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>Date</th><th>Project</th><th>Hours</th><th>Rate</th><th>Value</th><th>Notes</th></tr>
+                  </thead>
+                  <tbody id="time-body"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="expenses-view" aria-labelledby="view-title">
+          <section class="panel import-panel">
+            <div class="panel-header">
+              <div>
+                <h3>Import expense spreadsheet</h3>
+                <p>Bring in bank or card exports, detect recurring vendors, and fill monthly recurring charges from March 1, 2026 through today.</p>
+              </div>
+            </div>
+            <div class="import-grid">
+              <label>Project<select required id="import-project"></select></label>
+              <label>Spreadsheet<input id="expense-import-file" type="file" accept=".csv,.tsv,.xlsx" /></label>
+              <label>Import mode
+                <select id="import-mode">
+                  <option value="actual-and-recurring">Actual charges + recurring projections</option>
+                  <option value="actual-only">Actual charges only</option>
+                  <option value="recurring-only">Recurring projections only</option>
+                </select>
+              </label>
+              <button class="primary-button" id="import-expenses" type="button">Import expenses</button>
+            </div>
+            <div id="import-summary" class="import-summary"></div>
+          </section>
+          <div class="split-layout">
+            <form class="panel form-panel" id="expense-form">
+              <h3>Request or record spend</h3>
+              <label>Project<select required name="projectId" id="expense-project"></select></label>
+              <label>Vendor<input required name="vendor" list="vendor-suggestions" placeholder="Vendor or payee" /></label>
+              <label>Amount<input required name="amount" type="number" min="0.01" step="0.01" /></label>
+              <label>Spend date<input required name="date" type="date" /></label>
+              <label>Category
+                <select name="category">
+                  <option>Infrastructure</option>
+                  <option>Software</option>
+                  <option>Legal</option>
+                  <option>Marketing</option>
+                  <option>Accounting</option>
+                  <option>Contractor</option>
+                  <option>Other</option>
+                </select>
+              </label>
+              <label>Payment source
+                <select name="source">
+                  <option>Company card</option>
+                  <option>Startup bank account</option>
+                  <option>Founder reimbursement</option>
+                </select>
+              </label>
+              <label>Invoice or quote #<input name="reference" placeholder="Vendor invoice, quote, or PO" /></label>
+              <label>Needed by<input name="neededBy" type="date" /></label>
+              <label>Receipt reference<input name="receipt" placeholder="Receipt file or reference" /></label>
+              <label>Purpose<textarea required name="purpose" rows="4" placeholder="Why this spend is needed"></textarea></label>
+              <button class="primary-button" type="submit">Create approval request</button>
+            </form>
+            <section class="panel">
+              <div class="panel-header">
+                <div>
+                  <h3>Expense ledger</h3>
+                  <p>Receipts, approval state, and accounting categories stay together.</p>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>Date</th><th>Project</th><th>Vendor</th><th>Amount</th><th>Category</th><th>Status</th><th>Reference</th></tr>
+                  </thead>
+                  <tbody id="expense-body"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="income-view" aria-labelledby="view-title">
+          <div class="split-layout">
+            <form class="panel form-panel" id="income-form">
+              <h3>Create invoice or record payment</h3>
+              <label>Project<select required name="projectId" id="income-project"></select></label>
+              <label>Customer<input required name="customer" list="customer-suggestions" placeholder="Customer or company" /></label>
+              <label>Invoice #<input name="invoiceNumber" id="invoice-number" placeholder="Auto-assigned if blank" /></label>
+              <label>Invoice date<input required name="date" type="date" /></label>
+              <label>Due date<input name="dueDate" type="date" /></label>
+              <label>Plan
+                <select name="plan">
+                  <option>Monthly access</option>
+                  <option>6-month access</option>
+                  <option>1-year access</option>
+                  <option>Consulting</option>
+                  <option>Other</option>
+                </select>
+              </label>
+              <label>Amount<input required name="amount" type="number" min="0.01" step="0.01" /></label>
+              <label>Payment status
+                <select name="status">
+                  <option>Invoice sent</option>
+                  <option>Payment pending</option>
+                  <option>Paid</option>
+                  <option>Partially paid</option>
+                  <option>Trial</option>
+                  <option>Refunded</option>
+                </select>
+              </label>
+              <label>Payment method
+                <select name="paymentMethod">
+                  <option>ACH</option>
+                  <option>Card</option>
+                  <option>Wire</option>
+                  <option>Check</option>
+                  <option>Other</option>
+                </select>
+              </label>
+              <button class="primary-button" type="submit">Save invoice</button>
+            </form>
+            <section class="panel">
+              <div class="panel-header">
+                <div>
+                  <h3>Invoice and payment ledger</h3>
+                  <p>Track invoices, due dates, payment status, and subscription orders.</p>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>Date</th><th>Project</th><th>Invoice</th><th>Customer</th><th>Plan</th><th>Amount</th><th>Status</th><th>Due</th></tr>
+                  </thead>
+                  <tbody id="income-body"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="funds-view" aria-labelledby="view-title">
+          <div class="split-layout">
+            <form class="panel form-panel" id="fund-form">
+              <h3>Record fund infusion</h3>
+              <label>Project<select required name="projectId" id="fund-project"></select></label>
+              <label>Contributor<input required name="contributor" list="contributor-suggestions" placeholder="Founder, partner, investor, or account" /></label>
+              <label>Date<input required name="date" type="date" /></label>
+              <label>Amount<input required name="amount" type="number" min="0.01" step="0.01" /></label>
+              <label>Type
+                <select name="type">
+                  <option>Founder contribution</option>
+                  <option>Partner contribution</option>
+                  <option>Capital investment</option>
+                  <option>Loan</option>
+                  <option>Grant</option>
+                  <option>Other</option>
+                </select>
+              </label>
+              <label>Reference<input name="reference" placeholder="Transfer, memo, or document reference" /></label>
+              <label>Notes<textarea name="notes" rows="4" placeholder="Context for this infusion"></textarea></label>
+              <button class="primary-button" type="submit">Save funds</button>
+            </form>
+            <section class="panel">
+              <div class="panel-header">
+                <div>
+                  <h3>Funds ledger</h3>
+                  <p>Track capital put into each useful app separately from customer revenue.</p>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>Date</th><th>Project</th><th>Contributor</th><th>Type</th><th>Amount</th><th>Reference</th></tr>
+                  </thead>
+                  <tbody id="fund-body"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="approvals-view" aria-labelledby="view-title">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>Partner approval center</h3>
+                <p>Approve spend before it is placed on the linked card or bank account.</p>
+              </div>
+            </div>
+            <div id="approval-list" class="approval-list"></div>
+          </div>
+        </section>
+
+        <section class="view" id="reports-view" aria-labelledby="view-title">
+          <div class="report-toolbar">
+            <label>Project<select id="report-project"></select></label>
+            <label>From<input id="report-from" type="date" value="2026-03-01" /></label>
+            <label>To<input id="report-to" type="date" /></label>
+            <button class="primary-button" id="export-csv" type="button">Export CSV</button>
+            <button class="secondary-button" id="export-json" type="button">Export JSON</button>
+          </div>
+          <section class="panel report-panel" id="report-panel">
+            <div class="report-heading">
+              <div>
+                <p class="eyebrow">Useful Apps packet</p>
+                <h3 id="report-title">All initiatives</h3>
+              </div>
+              <div class="report-meta">
+                <span>CEO: Gautam Dogra</span>
+                <span>Portfolio: Useful Apps</span>
+              </div>
+            </div>
+            <div id="report-content"></div>
+            <div id="monthly-report-content"></div>
+          </section>
+        </section>
+
+        <section class="view" id="audit-view" aria-labelledby="view-title">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>Audit trail</h3>
+                <p>Material actions are time-stamped for accountability.</p>
+              </div>
+            </div>
+            <div id="audit-list" class="item-list"></div>
+          </div>
+        </section>
+
+        <section class="view" id="settings-view" aria-labelledby="view-title">
+          <div class="split-layout">
+            <form class="panel form-panel" id="company-form">
+              <h3>Company setup</h3>
+              <label>Company<input name="company" /></label>
+              <label>CEO<input name="ceo" /></label>
+              <label>Entity type<input name="entity" /></label>
+              <label>Payment source label<input name="card" /></label>
+              <label>Bank account label<input name="bank" /></label>
+              <label>Spend requiring approval<input name="approvalThreshold" type="number" min="0" step="1" /></label>
+              <label>Invoice prefix<input name="invoicePrefix" /></label>
+              <label>Next invoice number<input name="nextInvoiceNumber" type="number" min="1" step="1" /></label>
+              <button class="primary-button" type="submit">Save settings</button>
+            </form>
+            <form class="panel form-panel" id="partner-form">
+              <h3>Partners</h3>
+              <label>Partner 1<input name="partnerA" /></label>
+              <label>Partner 1 phone<input name="phoneA" /></label>
+              <label>Partner 2<input name="partnerB" /></label>
+              <label>Partner 2 phone<input name="phoneB" /></label>
+              <button class="primary-button" type="submit">Save partners</button>
+            </form>
+            <form class="panel form-panel" id="supabase-form">
+              <h3>Supabase database</h3>
+              <label>Project URL<input required name="url" placeholder="https://pmyqsieamfohrywdpora.supabase.co" /></label>
+              <label>Anon key<input name="anonKey" type="password" placeholder="Paste anon public key" /></label>
+              <label class="check-label"><input name="enabled" type="checkbox" /> Enable cloud sync</label>
+              <div class="inline-actions">
+                <button class="primary-button" type="submit">Save connection</button>
+                <button class="secondary-button" id="load-supabase" type="button">Load from DB</button>
+                <button class="secondary-button" id="push-supabase" type="button">Push now</button>
+              </div>
+              <div id="supabase-status" class="status-line">Project ID: pmyqsieamfohrywdpora</div>
+            </form>
+            <form class="panel form-panel" id="user-form">
+              <h3>Access profiles</h3>
+              <label>Name<input required name="name" placeholder="Person or role" /></label>
+              <label>Email<input required name="email" type="email" placeholder="person@example.com" /></label>
+              <label>Orgs<input name="orgs" placeholder="Comma-separated orgs" /></label>
+              <label>Role
+                <select name="role">
+                  <option>viewer</option>
+                  <option>admin</option>
+                </select>
+              </label>
+              <button class="primary-button" type="submit">Add access profile</button>
+            </form>
+            <section class="panel">
+              <div class="panel-header">
+                <div>
+                  <h3>Who can view what</h3>
+                  <p>Local access simulation for initiative-specific visibility.</p>
+                </div>
+              </div>
+              <div id="user-list" class="item-list"></div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+    <datalist id="vendor-suggestions"></datalist>
+    <datalist id="customer-suggestions"></datalist>
+    <datalist id="contributor-suggestions"></datalist>
+    <script src="app.js"></script>
+  </body>
+</html>
