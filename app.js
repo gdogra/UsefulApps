@@ -1011,6 +1011,20 @@ function inferReceiptVendor(text, file) {
     memory.display && lower.includes(String(memory.display).toLowerCase())
   );
   if (known?.display) return known.display;
+  const canonicalVendors = [
+    ["Zoom Communications, Inc.", /\bzoom\s+communications(?:,\s*inc\.?)?\b|\bzoom\.us\b|\bzoom\b/i],
+    ["OpenAI", /\bopenai\b|\bchatgpt\b/i],
+    ["Anthropic", /\banthropic\b|\bclaude\.ai\b|\bclaude\b/i],
+    ["Netlify", /\bnetlify\b/i],
+    ["Render.com", /\brender\.com\b|\brender\b/i],
+    ["Cloudflare", /\bcloudflare\b/i],
+    ["GitHub", /\bgithub\b/i],
+    ["Supabase", /\bsupabase\b/i]
+  ];
+  const canonical = canonicalVendors.find(([, pattern]) => pattern.test(normalized));
+  if (canonical) return canonical[0];
+  const companyMatch = normalized.match(/\b([A-Z][A-Za-z0-9&.,' -]{2,80}\b(?:Inc\.?|LLC|Ltd\.?|Corp\.?|Corporation|Company|Co\.))\b/);
+  if (companyMatch && !looksLikeDocumentNumber(companyMatch[1])) return companyMatch[1].trim();
   const vendorLabel = normalized.match(/\b(?:vendor|merchant|supplier|seller|from|billed\s+by)\s*[:\-]\s*([^\n]{3,80})/i);
   if (vendorLabel && !looksLikeDocumentNumber(vendorLabel[1])) return vendorLabel[1].trim();
   const lines = normalized
