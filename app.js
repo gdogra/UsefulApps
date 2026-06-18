@@ -306,7 +306,7 @@ function timeRows() {
 }
 
 function expenseRows() {
-  return state.expenses.map((expense) => {
+  return dedupeExpenses(state.expenses).map((expense) => {
     const data = { ...expense };
     if (data.document) delete data.document;
     return {
@@ -330,7 +330,7 @@ function expenseRows() {
 }
 
 function expenseDocumentRows() {
-  return state.expenses
+  return dedupeExpenses(state.expenses)
     .filter((expense) => expense.document?.id)
     .map((expense) => ({
       id: expense.document.id,
@@ -506,6 +506,7 @@ function migrateAppName(nextState) {
     owner: project.owner === LEGACY_APP_NAME ? APP_NAME : project.owner,
     org: project.org === LEGACY_APP_NAME ? APP_NAME : project.org
   }));
+  nextState.expenses = dedupeExpenses(nextState.expenses || []);
   return nextState;
 }
 
@@ -654,6 +655,42 @@ function expenseImportKey(expense) {
   ].join("|");
 }
 
+function expenseDedupeKey(expense) {
+  return [
+    expense.projectId,
+    expense.date,
+    normalizeVendor(expense.vendor),
+    Number(expense.amount).toFixed(2),
+    String(expense.reference || "").trim().toUpperCase(),
+    String(expense.document?.name || "").trim().toUpperCase(),
+    expense.projected ? "projected" : "actual"
+  ].join("|");
+}
+
+function richerExpense(current, next) {
+  return {
+    ...current,
+    ...next,
+    approvals: {
+      ...(current.approvals || {}),
+      ...(next.approvals || {})
+    },
+    document: next.document || current.document || null,
+    receipt: next.receipt || current.receipt || "",
+    purpose: next.purpose || current.purpose || "",
+    reference: next.reference || current.reference || ""
+  };
+}
+
+function dedupeExpenses(expenses = []) {
+  const byKey = new Map();
+  expenses.forEach((expense) => {
+    const key = expenseDedupeKey(expense);
+    byKey.set(key, byKey.has(key) ? richerExpense(byKey.get(key), expense) : expense);
+  });
+  return Array.from(byKey.values());
+}
+
 function entriesForReport() {
   const projectId = $("#report-project").value;
   const from = $("#report-from").value || START_DATE;
@@ -670,7 +707,7 @@ function entriesForReport() {
     from,
     to,
     timeEntries: state.timeEntries.filter(match),
-    expenses: state.expenses.filter(match),
+    expenses: dedupeExpenses(state.expenses.filter(match)),
     income: state.income.filter(match),
     funds: state.funds.filter(match)
   };
@@ -1304,7 +1341,7 @@ function renderTime() {
 }
 
 function renderExpenses() {
-  const entries = scopedEntries(state.expenses);
+  const entries = dedupeExpenses(scopedEntries(state.expenses));
   $("#expense-body").innerHTML = entries.length
     ? entries
         .slice()
@@ -1964,13 +2001,18 @@ function wireEvents() {
       alert(error.message);
       return;
     }
-    state.expenses.push({
+    const expense = {
       id: uid("expense"),
       ...data,
       amount: Number(data.amount),
       document,
       approvals: { partnerA: false, partnerB: false }
-    });
+    };
+    if (state.expenses.some((entry) => expenseDedupeKey(entry) === expenseDedupeKey(expense))) {
+      $("#receipt-autofill-status").textContent = `That expense already exists for ${data.vendor} on ${shortDate(data.date)} at ${money(data.amount)}.`;
+      return;
+    }
+    state.expenses.push(expense);
     state.activeProjectId = data.projectId;
     rememberVendor(data);
     addAudit("Spend requested", `${money(data.amount)} requested for ${data.vendor} on ${projectName(data.projectId)}.`, data.projectId);
