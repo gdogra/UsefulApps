@@ -3,6 +3,13 @@ const START_DATE = "2026-03-01";
 const APP_NAME = "Gautam's Apps";
 const LEGACY_APP_NAME = "Useful Apps";
 const MAX_EXPENSE_DOCUMENT_BYTES = 2 * 1024 * 1024;
+const KNOWN_RECURRING_VENDORS = [
+  { name: "Anthropic", pattern: /\b(ANTHROPIC|CLAUDE)\b/ },
+  { name: "ChatGPT / OpenAI", pattern: /\b(OPENAI|CHATGPT)\b/ },
+  { name: "Polygon / Massive", pattern: /\b(POLYGON|MASSIVE)\b/ },
+  { name: "Netlify", pattern: /\bNETLIFY\b/ },
+  { name: "Zoom Communications, Inc.", pattern: /\bZOOM\b/ }
+];
 
 localStorage.removeItem("opus-finance-tracker-v1");
 localStorage.removeItem("opus-finance-tracker-v2");
@@ -645,6 +652,15 @@ function normalizeVendor(value) {
     .trim();
 }
 
+function knownRecurringVendor(vendor) {
+  const normalized = normalizeVendor(vendor);
+  return KNOWN_RECURRING_VENDORS.find((item) => item.pattern.test(normalized))?.name || "";
+}
+
+function isRecurringExpense(expense) {
+  return Boolean(expense.recurring || expense.projected || knownRecurringVendor(expense.vendor));
+}
+
 function expenseImportKey(expense) {
   return [
     expense.projectId,
@@ -695,19 +711,33 @@ function entriesForReport() {
   const projectId = $("#report-project").value;
   const from = $("#report-from").value || START_DATE;
   const to = $("#report-to").value || "9999-12-31";
+  const timeFilter = ($("#report-time-filter")?.value || "").trim().toLowerCase();
+  const expenseCategory = $("#report-expense-category")?.value || "all";
+  const recurringFilter = $("#report-recurring-filter")?.value || "all";
   const visibleIds = new Set(visibleProjects().map((project) => project.id));
   const match = (entry) =>
     visibleIds.has(entry.projectId) &&
     (projectId === "all" || entry.projectId === projectId) &&
     entry.date >= from &&
     entry.date <= to;
+  const matchTime = (entry) => {
+    if (!match(entry) || !timeFilter) return match(entry);
+    return `${projectName(entry.projectId)} ${entry.notes || ""}`.toLowerCase().includes(timeFilter);
+  };
+  const matchExpense = (entry) => {
+    if (!match(entry)) return false;
+    if (expenseCategory !== "all" && entry.category !== expenseCategory) return false;
+    if (recurringFilter === "recurring" && !isRecurringExpense(entry)) return false;
+    if (recurringFilter === "one-time" && isRecurringExpense(entry)) return false;
+    return true;
+  };
 
   return {
     projectId,
     from,
     to,
-    timeEntries: state.timeEntries.filter(match),
-    expenses: dedupeExpenses(state.expenses.filter(match)),
+    timeEntries: state.timeEntries.filter(matchTime),
+    expenses: dedupeExpenses(state.expenses.filter(matchExpense)),
     income: state.income.filter(match),
     funds: state.funds.filter(match)
   };
@@ -763,6 +793,17 @@ function setProjectOptions() {
   ["#time-form button[type='submit']", "#expense-form button[type='submit']", "#income-form button[type='submit']", "#fund-form button[type='submit']", "#import-expenses"].forEach((selector) => {
     $(selector).disabled = !hasProjects;
   });
+}
+
+function setReportCategoryOptions() {
+  const select = $("#report-expense-category");
+  if (!select) return;
+  const selected = select.value || "all";
+  const categories = Array.from(new Set(state.expenses.map((expense) => expense.category).filter(Boolean))).sort();
+  select.innerHTML = `<option value="all">All expense types</option>${categories
+    .map((category) => `<option value="${htmlEscape(category)}">${htmlEscape(category)}</option>`)
+    .join("")}`;
+  select.value = selected === "all" || categories.includes(selected) ? selected : "all";
 }
 
 function setPaymentSourceOptions() {
@@ -847,7 +888,7 @@ function applyContributorMemory(contributor) {
 
 function selectProjectEverywhere(projectId) {
   if (!projectId) return;
-  ["#time-project", "#expense-project", "#income-project", "#fund-project", "#import-project"].forEach((selector) => {
+  ["#time-project", "#expense-project", "#income-project", "#fund-project", "#import-project", "#report-project"].forEach((selector) => {
     const select = $(selector);
     if ([...select.options].some((option) => option.value === projectId)) select.value = projectId;
   });
@@ -1227,7 +1268,7 @@ function renderDashboard() {
           const largest = Math.max(...visible.map((item) => summarizeProject(item.id).activityTotal), 1);
           const width = summary.activityTotal ? Math.max(8, (summary.activityTotal / largest) * 100) : Number(project.plannedShare || 0);
           const focusLabel = summary.activityTotal ? "Actual allocation" : "Planned focus";
-          return `<article class="allocation-item">
+          return `<button class="allocation-item allocation-button" type="button" data-select-project="${htmlEscape(project.id)}">
             <div class="allocation-main">
               <div>
                 <strong>${htmlEscape(project.name)}</strong>
@@ -1242,7 +1283,7 @@ function renderDashboard() {
               <span>Funds ${money(summary.fundTotal)}</span>
               <span>Paid ${money(summary.incomeTotal)}</span>
             </div>
-          </article>`;
+          </button>`;
         })
         .join("")
     : `<div class="empty-state">Add your first real initiative to begin production tracking.</div>`;
@@ -1462,6 +1503,78 @@ function approvalPerson(expense, key, name, phone) {
   </div>`;
 }
 
+function reportMetric(sectionId, label, value, detail) {
+  return `<button class="metric metric-button" type="button" data-report-section="${htmlEscape(sectionId)}">
+    <span>${htmlEscape(label)}</span>
+    <strong>${htmlEscape(value)}</strong>
+    <p>${htmlEscape(detail)}</p>
+  </button>`;
+}
+
+function sortedReportTimeEntries(entries) {
+  const sort = $("#report-time-sort")?.value || "date-desc";
+  return entries.slice().sort((a, b) => {
+    const valueA = Number(a.hours) * Number(a.rate);
+    const valueB = Number(b.hours) * Number(b.rate);
+    if (sort === "date-asc") return a.date.localeCompare(b.date);
+    if (sort === "hours-desc") return Number(b.hours) - Number(a.hours);
+    if (sort === "hours-asc") return Number(a.hours) - Number(b.hours);
+    if (sort === "value-desc") return valueB - valueA;
+    if (sort === "project-asc") return projectName(a.projectId).localeCompare(projectName(b.projectId)) || b.date.localeCompare(a.date);
+    return b.date.localeCompare(a.date);
+  });
+}
+
+function timeRecordsReport(entries) {
+  const rows = sortedReportTimeEntries(entries).map((entry) => [
+    shortDate(entry.date),
+    projectName(entry.projectId),
+    Number(entry.hours).toFixed(2),
+    money(entry.rate),
+    money(Number(entry.hours) * Number(entry.rate)),
+    entry.notes
+  ]);
+  return reportTable("Time records", ["Date", "Project", "Hours", "Rate", "Value", "Work"], rows, "report-time-records");
+}
+
+function recurringChargeRows(expenses) {
+  const groups = new Map();
+  expenses.filter(isRecurringExpense).forEach((expense) => {
+    const vendor = knownRecurringVendor(expense.vendor) || expense.vendor;
+    const key = normalizeVendor(vendor);
+    if (!groups.has(key)) {
+      groups.set(key, {
+        vendor,
+        amount: 0,
+        count: 0,
+        actual: 0,
+        projected: 0,
+        months: new Set(),
+        latestDate: ""
+      });
+    }
+    const group = groups.get(key);
+    group.amount += Number(expense.amount);
+    group.count += 1;
+    if (expense.projected || expense.recurring) group.projected += Number(expense.amount);
+    else group.actual += Number(expense.amount);
+    group.months.add(monthKey(expense.date));
+    if (expense.date > group.latestDate) group.latestDate = expense.date;
+  });
+
+  return Array.from(groups.values())
+    .sort((a, b) => b.amount - a.amount)
+    .map((group) => [
+      group.vendor,
+      group.months.size,
+      group.count,
+      money(group.actual),
+      money(group.projected),
+      money(group.amount),
+      shortDate(group.latestDate)
+    ]);
+}
+
 function renderReport() {
   const data = entriesForReport();
   const title = data.projectId === "all" ? "All initiatives" : projectName(data.projectId);
@@ -1475,17 +1588,18 @@ function renderReport() {
 
   $("#report-content").innerHTML = `
     <div class="metric-grid">
-      <article class="metric"><span>Period</span><strong>${shortDate(data.from)}</strong><p>through ${shortDate(data.to)}</p></article>
-      <article class="metric"><span>Labor investment</span><strong>${money(labor)}</strong><p>${hours.toFixed(1)} founder hours</p></article>
-      <article class="metric"><span>Expenses</span><strong>${money(expenses)}</strong><p>${data.expenses.length} receipts/items</p></article>
-      <article class="metric"><span>Funds</span><strong>${money(funds)}</strong><p>${data.funds.length} contributions</p></article>
-      <article class="metric"><span>Paid</span><strong>${money(income)}</strong><p>${data.income.length} invoices</p></article>
-      <article class="metric"><span>Open A/R</span><strong>${money(open)}</strong><p>${openIncomeEntries(data.income).filter(isOverdue).length} overdue</p></article>
+      ${reportMetric("report-time-records", "Period", shortDate(data.from), `through ${shortDate(data.to)}`)}
+      ${reportMetric("report-time-records", "Labor investment", money(labor), `${hours.toFixed(1)} founder hours`)}
+      ${reportMetric("report-expense-records", "Expenses", money(expenses), `${data.expenses.length} receipts/items`)}
+      ${reportMetric("report-fund-records", "Funds", money(funds), `${data.funds.length} contributions`)}
+      ${reportMetric("report-income-records", "Paid", money(income), `${data.income.length} invoices`)}
+      ${reportMetric("report-income-records", "Open A/R", money(open), `${openIncomeEntries(data.income).filter(isOverdue).length} overdue`)}
     </div>
-    ${reportTable("Time records", ["Date", "Project", "Hours", "Rate", "Value", "Work"], data.timeEntries.map((entry) => [shortDate(entry.date), projectName(entry.projectId), Number(entry.hours).toFixed(2), money(entry.rate), money(Number(entry.hours) * Number(entry.rate)), entry.notes]))}
-    ${reportTable("Expenses and receipts", ["Date", "Project", "Vendor", "Amount", "Document", "Receipt", "Approval"], data.expenses.map((entry) => [shortDate(entry.date), projectName(entry.projectId), entry.vendor, money(entry.amount), expenseDocumentLabel(entry), receiptStatus(entry), approvalStatus(entry)]))}
-    ${reportTable("Fund infusions", ["Date", "Project", "Contributor", "Type", "Amount", "Reference"], data.funds.map((entry) => [shortDate(entry.date), projectName(entry.projectId), entry.contributor, entry.type, money(entry.amount), entry.reference || ""]))}
-    ${reportTable("Invoices and payments", ["Date", "Due", "Project", "Invoice", "Customer", "Plan", "Amount", "Status"], data.income.map((entry) => [shortDate(entry.date), shortDate(entry.dueDate), projectName(entry.projectId), entry.invoiceNumber || "", entry.customer, entry.plan, money(entry.amount), isOverdue(entry) ? "Overdue" : entry.status]))}
+    ${timeRecordsReport(data.timeEntries)}
+    ${reportTable("Recurring charge watchlist", ["Vendor", "Months", "Items", "Actual", "Projected", "Total", "Latest"], recurringChargeRows(data.expenses), "report-recurring-records")}
+    ${reportTable("Expenses and receipts", ["Date", "Project", "Vendor", "Amount", "Document", "Receipt", "Approval"], data.expenses.map((entry) => [shortDate(entry.date), projectName(entry.projectId), entry.vendor, money(entry.amount), expenseDocumentLabel(entry), receiptStatus(entry), approvalStatus(entry)]), "report-expense-records")}
+    ${reportTable("Fund infusions", ["Date", "Project", "Contributor", "Type", "Amount", "Reference"], data.funds.map((entry) => [shortDate(entry.date), projectName(entry.projectId), entry.contributor, entry.type, money(entry.amount), entry.reference || ""]), "report-fund-records")}
+    ${reportTable("Invoices and payments", ["Date", "Due", "Project", "Invoice", "Customer", "Plan", "Amount", "Status"], data.income.map((entry) => [shortDate(entry.date), shortDate(entry.dueDate), projectName(entry.projectId), entry.invoiceNumber || "", entry.customer, entry.plan, money(entry.amount), isOverdue(entry) ? "Overdue" : entry.status]), "report-income-records")}
   `;
   renderMonthlyReports(data);
 }
@@ -1515,12 +1629,13 @@ function renderMonthlyReports(data) {
   $("#monthly-report-content").innerHTML = reportTable("Monthly expense reports", ["Month", "Charges", "Actual", "Recurring / projected", "Total", "Missing receipts"], rows);
 }
 
-function reportTable(title, headers, rows) {
+function reportTable(title, headers, rows, id = "") {
+  const idAttribute = id ? ` id="${htmlEscape(id)}"` : "";
   if (!rows.length) {
-    return `<div class="report-block"><h3>${title}</h3><div class="empty-state">No records in this period.</div></div>`;
+    return `<div class="report-block"${idAttribute}><h3>${title}</h3><div class="empty-state">No records in this period.</div></div>`;
   }
 
-  return `<div class="report-block">
+  return `<div class="report-block"${idAttribute}>
     <h3>${title}</h3>
     <div class="table-wrap">
       <table>
@@ -1588,6 +1703,7 @@ function renderSettings() {
 
 function renderAll() {
   setProjectOptions();
+  setReportCategoryOptions();
   setPaymentSourceOptions();
   renderSuggestions();
   if (state.activeProjectId !== "all") selectProjectEverywhere(state.activeProjectId);
@@ -1825,8 +1941,9 @@ function detectRecurringExpenses(expenses, projectId, fileName) {
 
   groups.forEach((items, key) => {
     const months = new Set(items.map((item) => monthKey(item.date)));
-    if (months.size < 2 && items.length < 2) return;
-    detected.push(key);
+    const knownVendor = knownRecurringVendor(items[0]?.vendor);
+    if (!knownVendor && months.size < 2 && items.length < 2) return;
+    detected.push(knownVendor || key);
     const sorted = items.slice().sort((a, b) => a.date.localeCompare(b.date));
     const latest = sorted[sorted.length - 1];
     const day = Math.min(28, Number(latest.date.slice(8, 10)) || 1);
@@ -2086,6 +2203,8 @@ function wireEvents() {
 
   $("#active-project").addEventListener("change", (event) => {
     state.activeProjectId = event.target.value;
+    if (event.target.value !== "all") selectProjectEverywhere(event.target.value);
+    else $("#report-project").value = "all";
     saveState();
     renderAll();
   });
@@ -2167,9 +2286,34 @@ function wireEvents() {
     renderAll();
   });
 
-  ["#report-project", "#report-from", "#report-to"].forEach((selector) => {
+  $("#project-summary-body").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-select-project]");
+    if (!button) return;
+    state.activeProjectId = button.dataset.selectProject;
+    selectProjectEverywhere(state.activeProjectId);
+    saveState();
+    renderAll();
+  });
+
+  $("#report-content").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-report-section]");
+    if (!button) return;
+    const section = document.getElementById(button.dataset.reportSection);
+    section?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
+  $("#report-project").addEventListener("change", (event) => {
+    state.activeProjectId = event.target.value;
+    if (event.target.value !== "all") selectProjectEverywhere(event.target.value);
+    else $("#active-project").value = "all";
+    saveState();
+    renderAll();
+  });
+
+  ["#report-from", "#report-to", "#report-time-sort", "#report-expense-category", "#report-recurring-filter"].forEach((selector) => {
     $(selector).addEventListener("change", renderReport);
   });
+  $("#report-time-filter").addEventListener("input", renderReport);
 
   $("#export-csv").addEventListener("click", exportCsv);
   $("#export-json").addEventListener("click", exportJson);

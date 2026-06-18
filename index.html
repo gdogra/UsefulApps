@@ -375,6 +375,25 @@
             <label>Project<select id="report-project"></select></label>
             <label>From<input id="report-from" type="date" value="2026-03-01" /></label>
             <label>To<input id="report-to" type="date" /></label>
+            <label>Time filter<input id="report-time-filter" type="search" placeholder="Work text or project" /></label>
+            <label>Time sort
+              <select id="report-time-sort">
+                <option value="date-desc">Newest first</option>
+                <option value="date-asc">Oldest first</option>
+                <option value="hours-desc">Hours high to low</option>
+                <option value="hours-asc">Hours low to high</option>
+                <option value="value-desc">Value high to low</option>
+                <option value="project-asc">Project A-Z</option>
+              </select>
+            </label>
+            <label>Expense category<select id="report-expense-category"></select></label>
+            <label>Charge type
+              <select id="report-recurring-filter">
+                <option value="all">All charges</option>
+                <option value="recurring">Recurring only</option>
+                <option value="one-time">One-time only</option>
+              </select>
+            </label>
             <button class="primary-button" id="export-csv" type="button">Export CSV</button>
             <button class="secondary-button" id="export-json" type="button">Export JSON</button>
           </div>
@@ -469,6 +488,6 @@
     <datalist id="vendor-suggestions"></datalist>
     <datalist id="customer-suggestions"></datalist>
     <datalist id="contributor-suggestions"></datalist>
-    <script src="app.js?v=20260618-receipt-status"></script>
+    <script src="app.js?v=20260618-report-controls"></script>
   </body>
 </html>
