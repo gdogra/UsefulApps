@@ -1076,7 +1076,7 @@ function inferReceiptCategory(text) {
     ["Marketing", /\b(marketing|ads?|google ads|facebook|linkedin|mailchimp|campaign|brand)\b/],
     ["Contractor", /\b(contractor|consultant|freelance|upwork|fiverr|developer|designer)\b/],
     ["Infrastructure", /\b(aws|amazon web services|supabase|netlify|vercel|cloudflare|domain|hosting|server|database|openai|api|github)\b/],
-    ["Software", /\b(software|subscription|saas|license|notion|figma|slack|zoom|microsoft|google workspace|adobe)\b/],
+    ["Software", /\b(software|subscription|saas|license|notion|figma|slack|zoom|microsoft|google workspace|adobe|polygon|massive)\b/],
     ["Accounting", /\b(accounting|bookkeep|tax|quickbooks|payroll|cpa)\b/]
   ];
   return rules.find(([, pattern]) => pattern.test(value))?.[0] || "";
@@ -1093,6 +1093,7 @@ function inferReceiptVendor(text, file) {
     ["Zoom Communications, Inc.", /\bzoom\s+communications(?:,\s*inc\.?)?\b|\bzoom\.us\b|\bzoom\b/i],
     ["OpenAI", /\bopenai\b|\bchatgpt\b/i],
     ["Anthropic", /\banthropic\b|\bclaude\.ai\b|\bclaude\b/i],
+    ["Polygon / Massive", /\bpolygon\b|\bmassive\b/i],
     ["Netlify", /\bnetlify\b/i],
     ["Render.com", /\brender\.com\b|\brender\b/i],
     ["Cloudflare", /\bcloudflare\b/i],
