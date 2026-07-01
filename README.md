@@ -10,7 +10,7 @@ This repository contains the static Gautam's Apps prototype:
 - `styles.css` - application styling
 - `app.js` - local state, imports, reporting, access filtering, and Supabase sync
 - `gautams-apps-production-schema.sql` - production Supabase tables and policies
-- `useful-apps-supabase-schema.sql` - legacy single-row JSON sync setup
+- `gautams-apps-supabase-schema.sql` - legacy single-row JSON sync setup
 
 Expense entries can include an invoice, quote, purchase order, receipt, or other vendor document. Files are currently stored in the `expense_documents` table as JSON/base64 payloads and capped at 2 MB each; moving larger documents to Supabase Storage is the next production step.
 

@@ -1,4 +1,5 @@
-const STORAGE_KEY = "useful-apps-ledger-v4";
+const STORAGE_KEY = "gautams-apps-ledger-v1";
+const LEGACY_STORAGE_KEYS = ["useful-apps-ledger-v4"];
 const START_DATE = "2026-03-01";
 const APP_NAME = "Gautam's Apps";
 const LEGACY_APP_NAME = "Useful Apps";
@@ -163,7 +164,7 @@ const shortDate = (date) => {
 };
 
 function loadState() {
-  const saved = localStorage.getItem(STORAGE_KEY);
+  const saved = localStorage.getItem(STORAGE_KEY) || LEGACY_STORAGE_KEYS.map((key) => localStorage.getItem(key)).find(Boolean);
   if (!saved) return migrateAppName(structuredClone(initialState));
   try {
     const parsed = JSON.parse(saved);
@@ -2051,11 +2052,11 @@ function exportCsv() {
   data.expenses.forEach((entry) => rows.push(["expense", entry.date, entry.neededBy || "", projectName(entry.projectId), entry.vendor, entry.reference || entry.receipt || "", expenseDocumentLabel(entry), entry.category, entry.amount, approvalStatus(entry)]));
   data.funds.forEach((entry) => rows.push(["fund", entry.date, "", projectName(entry.projectId), entry.contributor, entry.reference || "", "", entry.type, entry.amount, entry.notes || ""]));
   data.income.forEach((entry) => rows.push(["invoice", entry.date, entry.dueDate || "", projectName(entry.projectId), entry.customer, entry.invoiceNumber || "", "", entry.plan, entry.amount, isOverdue(entry) ? "Overdue" : entry.status]));
-  download("useful-apps-report.csv", rows.map((row) => row.map(csvEscape).join(",")).join("\n"), "text/csv");
+  download("gautams-apps-report.csv", rows.map((row) => row.map(csvEscape).join(",")).join("\n"), "text/csv");
 }
 
 function exportJson() {
-  download("useful-apps-report.json", JSON.stringify(entriesForReport(), null, 2), "application/json");
+  download("gautams-apps-report.json", JSON.stringify(entriesForReport(), null, 2), "application/json");
 }
 
 function setTodayDefaults() {
